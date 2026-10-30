@@ -1,0 +1,22 @@
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.coverage
+.DS_Store
+
+# Generated datasets, checkpoints, samples, and training artifacts
+datasets/fashion_mnist/*
+!datasets/fashion_mnist/.gitkeep
+checkpoints/*
+!checkpoints/.gitkeep
+outputs/fashion/*
+!outputs/fashion/.gitkeep
+outputs/faces/*
+!outputs/faces/.gitkeep
+outputs/training_graphs/*
+!outputs/training_graphs/.gitkeep
+
+# Local Streamlit/runtime files
+.streamlit/secrets.toml
