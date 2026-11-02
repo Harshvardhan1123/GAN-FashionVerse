@@ -1,141 +1,316 @@
 # GAN FashionVerse
 
-**Where Artificial Intelligence Meets Fashion Creativity.**
+GAN FashionVerse is a PyTorch project for training and serving GANs that
+generate Fashion-MNIST clothing images and optional 64x64 RGB face images.
+It includes:
 
-GAN FashionVerse is an academic deep-learning project that demonstrates how
-Generative Adversarial Networks can learn to synthesize Fashion-MNIST images.
-The project includes both a fully connected Basic GAN and an independent
-convolutional DCGAN, with a modular PyTorch training pipeline and Streamlit
-interface.
+- A fully connected Basic GAN for 28x28 grayscale Fashion-MNIST images.
+- A convolutional DCGAN for 28x28 grayscale Fashion-MNIST images.
+- An independent 64x64 RGB face GAN.
+- An improved trainer with hinge loss, spectral normalization, EMA, resume
+  support, and improved face preprocessing.
+- A Streamlit application for generation, dataset inspection, and training
+  history visualization.
 
-## Project status
+The Fashion-MNIST models generate small grayscale clothing concepts. They do
+not generate photorealistic full-body fashion images.
 
-Implemented:
- 
-- Fashion-MNIST loading, normalization, metadata, and visualization
-- Basic MLP GAN with a 100-dimensional latent vector
-- DCGAN for 28x28 grayscale images
-- BCE-with-logits adversarial training
-- CPU fallback and CUDA detection
-- Checkpoint and loss-history persistence
-- Seeded inference and PNG gallery export
-- Streamlit dashboard and training visualizations
-- Separate face-GAN architecture with honest untrained-model handling
+## What is included in a fork
 
-The face module is trained separately from the fashion models. It uses a real
-face dataset and does not display faces until a valid face checkpoint exists.
+The source code required to train and run the project is stored in these
+directories and files:
 
-## Technology stack
+```text
+app/                  Streamlit application and pages
+data/                 Dataset loaders and preprocessing
+inference/            Checkpoint loading and image generation
+models/               Basic, DCGAN, and face model definitions
+training/             Training entry points and checkpoint utilities
+tests/                Automated tests
+config.py             Fashion training defaults
+check_gpu.py          Python, PyTorch, and CUDA diagnostics
+requirements.txt      Python dependency constraints
+```
 
-- Python 3.11
-- PyTorch and Torchvision
-- NumPy and Pillow
-- Matplotlib
-- Streamlit
-- Pytest
+Generated datasets, checkpoints, and outputs are ignored by Git. A fresh fork
+therefore starts without trained checkpoint files and must train locally or
+copy compatible checkpoints into `checkpoints/`.
 
-## GAN architectures
+The repository currently contains these training scripts:
 
-### Basic GAN
+```text
+training/train.py             Original Fashion-MNIST trainer
+training/train_faces.py       Original face trainer
+training/train_improved.py    Improved fashion/face trainer
+```
 
-The Basic GAN uses fully connected networks:
+## Requirements
 
-- Generator: `100 -> 256 -> 512 -> 1024 -> 784`, ReLU and Tanh
-- Discriminator: `784 -> 512 -> 256 -> 1`, LeakyReLU and logits
+The project is configured for Python 3.11. The dependency constraints are:
 
-The generator output is reshaped to `1 x 28 x 28`.
+```text
+numpy>=1.26,<3
+pillow>=10,<14
+matplotlib>=3.8,<4
+torch>=2.2,<3
+torchvision>=0.17,<1
+streamlit>=1.35,<2
+plotly>=5.20,<7
+pytest>=8,<9
+kagglehub>=0.3,<1
+```
 
-### DCGAN
+CUDA is optional. The code automatically uses CUDA when
+`torch.cuda.is_available()` is true; otherwise it uses the CPU.
 
-The DCGAN uses transposed convolutions in the generator and convolutional
-layers in the discriminator, with batch normalization, ReLU/LeakyReLU
-activations, Tanh output, and DCGAN-style weight initialization.
-Both models use `BCEWithLogitsLoss`. The discriminator receives detached fake
-images during its update, while the generator receives a separate update to
-fool the discriminator.
+## 1. Clone and create an environment
 
-## Dataset
-
-The initial dataset is Fashion-MNIST:
-
-- 60,000 training images and 10,000 test images
-- 10 clothing classes
-- 28 x 28 grayscale images
-- Values normalized to `[-1, 1]`
-- Stored under `datasets/fashion_mnist/`
-
-The model generates small grayscale clothing concepts. It does not generate
-photorealistic full-body outfits.
-
-## Installation
-
-From the project root on Windows:
+From PowerShell:
 
 ```powershell
+git clone https://github.com/Harshvardhan1123/GAN-FashionVerse.git
+cd GAN-FashionVerse
+
 py -3.11 -m venv .venv
 .\.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
 python -m pip install -r requirements.txt
 ```
 
-Check the environment:
+If PowerShell blocks activation, run:
+
+```powershell
+Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
+.\.venv\Scripts\Activate.ps1
+```
+
+On Linux or macOS, use the equivalent `python3 -m venv .venv`,
+`source .venv/bin/activate`, and `python -m pip install -r requirements.txt`.
+
+## 2. Verify Python, PyTorch, and CUDA
 
 ```powershell
 python check_gpu.py
 ```
 
-CUDA is used automatically when available. Otherwise, training falls back to
-CPU.
+The script prints the Python version, platform, PyTorch version, CUDA
+availability, and GPU name when CUDA is available.
 
-## Training
+## 3. Run the tests
 
-Train the Basic GAN and download Fashion-MNIST on first use:
+```powershell
+python -m pytest tests -q
+```
+
+The tests cover data utilities, model dimensions, gradients, checkpoint
+round-trips, seeded inference, DCGAN integration, and face-model availability.
+
+## 4. Train the original Fashion GANs
+
+Fashion-MNIST is downloaded by Torchvision when `--download` is supplied.
+The dataset is stored under `datasets/fashion_mnist/`.
+
+### Basic GAN
 
 ```powershell
 python -m training.train --architecture basic --epochs 10 --download
 ```
 
-Train the DCGAN:
+Optional batch-size override:
+
+```powershell
+python -m training.train --architecture basic --epochs 10 --batch-size 128 --download
+```
+
+### DCGAN
 
 ```powershell
 python -m training.train --architecture dcgan --epochs 10 --download
 ```
 
-Training writes checkpoints to `checkpoints/` and histories/samples to
-`outputs/training_graphs/`. The default batch size is 128 and can be changed
-in the training entry point or configuration.
+The original trainer uses:
 
-## Generate images
-
-After training, use the Streamlit Fashion Studio or call inference directly:
-
-```powershell
-python -c "from inference.generate_fashion import generate_fashion_images, save_fashion_images; images = generate_fashion_images('checkpoints/basic_gan_checkpoint.pth', count=4, seed=42); print(save_fashion_images(images, seed=42))"
+```text
+Latent dimension: 100
+Batch size: 128
+Loss: BCEWithLogitsLoss
+Optimizer: Adam
+Learning rate: 0.0002 for G and D
+Betas: (0.5, 0.999)
+D updates per batch: 1
+G updates per batch: 1
 ```
 
-Generated PNGs and gallery metadata are stored under `outputs/fashion/`.
-Using the same seed and checkpoint produces reproducible results.
+Original Fashion checkpoints:
 
-## Face model training
-
-The face module supports a recursive image folder and was trained here on the
-Kaggle Flickr-Faces-HQ (FFHQ) dataset. After downloading it with KaggleHub,
-train with:
-
-```powershell
-python -m training.train_faces --data-dir "<path-to>\flickrfaceshq-dataset-ffhq\versions\1" --epochs 1
+```text
+checkpoints/basic_gan_checkpoint.pth
+checkpoints/dcgan_gan_checkpoint.pth
 ```
 
-The trained face checkpoint is saved to `checkpoints/face_generator.pth`, with
-loss history in `outputs/faces/face_gan_history.json`. The AI Model Studio only
-displays faces after this checkpoint exists.
+Original training histories and sample grids:
 
-## Start the application
- 
+```text
+outputs/training_graphs/basic_gan_history.json
+outputs/training_graphs/dcgan_gan_history.json
+outputs/training_graphs/basic_gan_epoch_XXX.png
+outputs/training_graphs/dcgan_gan_epoch_XXX.png
+```
+
+## 5. Train with the improved trainer
+
+`training/train_improved.py` provides an alternate training workflow. It does
+not change the generator definitions used by inference. It uses:
+
+```text
+Fashion target: Fashion-MNIST DCGAN generator
+Face target: FaceGenerator
+Loss: hinge loss
+Discriminator: spectral normalization, no discriminator BatchNorm
+Generator learning rate: 1e-4
+Discriminator learning rate: 4e-4
+Adam betas: (0.0, 0.9)
+EMA decay: 0.999 maximum, with warm-up adjustment
+Fashion default epochs: 50
+Face default epochs: 60
+Fashion default batch size: 128
+Face default batch size: 64
+DataLoader drop_last: True
+```
+
+### Improved Fashion training
+
+```powershell
+python -m training.train_improved fashion --epochs 50
+```
+
+Useful options:
+
+```powershell
+python -m training.train_improved fashion `
+  --fashion-root datasets/fashion_mnist `
+  --epochs 50 `
+  --batch-size 128 `
+  --num-workers 2
+```
+
+The improved Fashion trainer downloads Fashion-MNIST automatically through
+Torchvision and saves:
+
+```text
+checkpoints/dcgan_gan_checkpoint_v2.pth
+outputs/improved/fashion/history.json
+outputs/improved/fashion/epoch_XXX.png
+```
+
+Resume an improved Fashion run:
+
+```powershell
+python -m training.train_improved fashion --epochs 100 --resume
+```
+
+The `--epochs` value is the target ending epoch when resuming.
+
+### Improved face training
+
+The face trainer accepts a folder containing `.jpg`, `.jpeg`, `.png`, or
+`.webp` images, including nested folders. The dataset itself is not included
+in this repository. Use a dataset whose license permits your intended use.
+
+```powershell
+python -m training.train_improved faces `
+  --data-dir "C:\path\to\face-images" `
+  --epochs 60 `
+  --batch-size 64
+```
+
+The improved face preprocessing:
+
+- Converts images to RGB.
+- Applies a center-square crop by default, avoiding direct aspect-ratio
+  stretching.
+- Resizes to 64x64 with antialiasing.
+- Applies random horizontal flip.
+- Normalizes each RGB channel with mean `0.5` and standard deviation `0.5`.
+
+For datasets where a fixed center crop is appropriate:
+
+```powershell
+python -m training.train_improved faces `
+  --data-dir "C:\path\to\face-images" `
+  --crop 140 `
+  --epochs 60
+```
+
+Improved face outputs:
+
+```text
+checkpoints/face_generator_v2.pth
+outputs/improved/faces/history.json
+outputs/improved/faces/epoch_XXX.png
+```
+
+Resume an improved face run:
+
+```powershell
+python -m training.train_improved faces `
+  --data-dir "C:\path\to\face-images" `
+  --epochs 120 `
+  --resume
+```
+
+The improved checkpoints contain the EMA generator under the existing
+`checkpoint["generator"]` key, plus the raw generator under
+`checkpoint["generator_raw"]`. The app's generator inference code loads the
+EMA generator.
+
+## 6. Run inference from Python
+
+### Fashion inference
+
+For an original Basic GAN checkpoint:
+
+```powershell
+python -c "from inference.generate_fashion import generate_fashion_images, save_fashion_images; images = generate_fashion_images('checkpoints/basic_gan_checkpoint.pth', count=4, seed=42, architecture='basic'); print(save_fashion_images(images, seed=42))"
+```
+
+For an original or improved DCGAN generator checkpoint:
+
+```powershell
+python -c "from inference.generate_fashion import generate_fashion_images, save_fashion_images; images = generate_fashion_images('checkpoints/dcgan_gan_checkpoint.pth', count=4, seed=42, architecture='dcgan'); print(save_fashion_images(images, seed=42))"
+```
+
+The same checkpoint and seed produce reproducible fashion latent vectors.
+Generated fashion PNGs and `gallery.json` are saved under
+`outputs/fashion/`.
+
+### Face inference
+
+```powershell
+python -c "from inference.generate_faces import generate_faces, save_face_images; images = generate_faces('checkpoints/face_generator.pth', count=4, seed=42); print(save_face_images(images, seed=42))"
+```
+
+For the improved face checkpoint, use:
+
+```powershell
+python -c "from inference.generate_faces import generate_faces, save_face_images; images = generate_faces('checkpoints/face_generator_v2.pth', count=4, seed=42); print(save_face_images(images, seed=42))"
+```
+
+The face generator returns 64x64 RGB tensors and the saved images are written
+under `outputs/faces/`.
+
+## 7. Run the Streamlit application
+
+Start from the repository root:
+
 ```powershell
 streamlit run app/app.py
 ```
 
-The dashboard includes:
+The project configures Streamlit to bind to `127.0.0.1`. Open the localhost
+URL printed by Streamlit.
+
+Available pages:
 
 1. Home
 2. Fashion Studio
@@ -145,59 +320,96 @@ The dashboard includes:
 6. How GAN Works
 7. About Project
 
+### Checkpoint filenames expected by the app
+
+The Fashion Studio expects:
+
+```text
+checkpoints/basic_gan_checkpoint.pth
+checkpoints/dcgan_gan_checkpoint.pth
+```
+
+The AI Model Studio expects:
+
+```text
+checkpoints/face_generator.pth
+```
+
+The improved trainer writes `_v2` filenames. To use an improved checkpoint in
+the current app, copy it to the filename expected by the app after confirming
+that you want to replace the existing checkpoint:
+
+```powershell
+Copy-Item checkpoints\dcgan_gan_checkpoint_v2.pth `
+  checkpoints\dcgan_gan_checkpoint.pth
+
+Copy-Item checkpoints\face_generator_v2.pth `
+  checkpoints\face_generator.pth
+```
+
+The improved Fashion checkpoint is compatible with the DCGAN generator
+inference path. The improved face checkpoint is compatible with the existing
+FaceGenerator inference path.
+
+## Dataset details
+
+### Fashion-MNIST
+
+The project uses the Torchvision Fashion-MNIST dataset:
+
+```text
+Training images: 60,000
+Test images: 10,000
+Resolution: 28 x 28
+Channels: 1 grayscale
+Normalization: mean 0.5, standard deviation 0.5
+Normalized range: [-1, 1]
+```
+
+### Face data
+
+The original face loader accepts a user-provided recursive image folder and
+resizes every image directly to 64x64. The improved loader uses a
+center-square crop by default before resizing. No face dataset is bundled with
+the repository.
+
 ## Project structure
 
 ```text
 GAN-FashionVerse/
-├── app/                  # Streamlit pages and shared UI
-├── data/                 # Fashion-MNIST loading and transforms
-├── models/               # Basic GAN, DCGAN, and face architectures
-├── training/             # Training loops and checkpoint utilities
-├── inference/            # Fashion and face inference
-├── datasets/             # Downloaded datasets (ignored by Git)
-├── checkpoints/          # Model checkpoints (ignored by Git)
-├── outputs/              # Generated samples and histories
-├── tests/                # Automated tests
-├── config.py
-├── check_gpu.py
-└── requirements.txt
+|-- app/                  Streamlit pages and shared UI
+|-- data/                 Fashion-MNIST and face data loaders
+|-- models/               Basic GAN, DCGAN, and face architectures
+|-- training/             Original and improved training scripts
+|-- inference/            Fashion and face inference
+|-- datasets/             Downloaded datasets; generated locally
+|-- checkpoints/          Model checkpoints; generated locally
+|-- outputs/              Generated images, histories, and samples
+|-- tests/                Automated tests
+|-- config.py             Fashion defaults
+|-- check_gpu.py          Runtime diagnostics
+|-- requirements.txt      Dependencies
+`-- README.md             This guide
 ```
 
-## Testing
+## Important limitations
 
-Run the complete test suite:
+- Checkpoints are ignored by Git and are not guaranteed to be present in a
+  fresh fork.
+- Face dataset files are not included.
+- The Fashion models operate at 28x28 grayscale resolution.
+- The face models operate at 64x64 RGB resolution.
+- No FID, Inception Score, or other image-quality metric is implemented.
+- Training quality depends on the number of epochs, dataset, hardware, and
+  selected trainer.
+- Do not commit private datasets, credentials, or unlicensed image data.
 
-```powershell
-python -m pytest tests -q
-```
+## License and dataset responsibility
 
-The tests cover data utilities, model dimensions, gradients, checkpoint
-round-trips, inference reproducibility, DCGAN integration, and face-model
-availability behavior.
+No project license file was found in the repository. Add an appropriate
+license before redistributing the project. Verify the license and permitted
+use of any face dataset before downloading, training, or distributing outputs.
 
-## Screenshots
-
-Screenshots can be added here after running the Streamlit application locally.
-Generated images and training charts should be captured from real checkpoints
-and real training history rather than placeholders.
-
-## Future enhancements
-
-- Complete DCGAN-specific training controls in the UI
-- Add a real, appropriately licensed face dataset pipeline
-- Implement face-GAN training and evaluation
-- Add experiment metadata and architecture comparison charts
-- Add FID or related evaluation when the dataset and compute budget support it
-
-## Contributors
+## Author
 
 GAN FashionVerse is an academic project by Harshvardhan1123.
-
-
-
-
-
-
-
-
-
