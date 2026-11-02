@@ -48,20 +48,33 @@ def center_square(img: Image.Image) -> Image.Image:
     return transforms.functional.center_crop(img, min(img.size))
 
 
+def pad_square(img: Image.Image) -> Image.Image:
+    """Pad to a square on a white background (keeps whole garment visible)."""
+    side = max(img.size)
+    canvas = Image.new("RGB", (side, side), (255, 255, 255))
+    canvas.paste(img, ((side - img.width) // 2, (side - img.height) // 2))
+    return canvas
+
+
 class FaceFolder(Dataset):
+    """Recursive RGB image folder (used for faces and colour fashion)."""
+
     EXT = {".jpg", ".jpeg", ".png", ".webp"}
 
-    def __init__(self, root: str, size: int = 64, crop: int = 0) -> None:
+    def __init__(
+        self, root: str, size: int = 64, crop: int = 0, pad: bool = False
+    ) -> None:
         self.paths = sorted(
             p for p in Path(root).rglob("*") if p.suffix.lower() in self.EXT
         )
         if not self.paths:
             raise FileNotFoundError(f"No images found under {root}")
-        first = (
-            transforms.CenterCrop(crop)
-            if crop
-            else transforms.Lambda(center_square)
-        )
+        if pad:
+            first = transforms.Lambda(pad_square)
+        elif crop:
+            first = transforms.CenterCrop(crop)
+        else:
+            first = transforms.Lambda(center_square)
         self.tf = transforms.Compose(
             [
                 first,
@@ -148,14 +161,20 @@ def run(args: argparse.Namespace) -> None:
         out_dir = Path("outputs/improved/fashion")
     else:
         if not args.data_dir:
-            raise SystemExit("--data-dir is required for faces")
+            raise SystemExit("--data-dir is required for this target")
         size, nc = 64, 3
         batch = args.batch_size or 64
-        epochs = args.epochs or 60
-        G = FaceGenerator(latent_dim=LATENT_DIM)
-        data = FaceFolder(args.data_dir, size=64, crop=args.crop)
-        ckpt_path = Path("checkpoints/face_generator_v2.pth")
-        out_dir = Path("outputs/improved/faces")
+        G = FaceGenerator(latent_dim=LATENT_DIM)  # generic 100 -> 64x64 RGB
+        if args.target == "fashion-color":
+            epochs = args.epochs or 80
+            data = FaceFolder(args.data_dir, size=64, pad=True)
+            ckpt_path = Path("checkpoints/fashion_color_generator_v2.pth")
+            out_dir = Path("outputs/improved/fashion_color")
+        else:
+            epochs = args.epochs or 60
+            data = FaceFolder(args.data_dir, size=64, crop=args.crop)
+            ckpt_path = Path("checkpoints/face_generator_v2.pth")
+            out_dir = Path("outputs/improved/faces")
 
     ckpt_path.parent.mkdir(parents=True, exist_ok=True)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -259,7 +278,7 @@ def run(args: argparse.Namespace) -> None:
 
 def main() -> None:
     p = argparse.ArgumentParser()
-    p.add_argument("target", choices=["fashion", "faces"])
+    p.add_argument("target", choices=["fashion", "faces", "fashion-color"])
     p.add_argument("--data-dir", default=None, help="face image folder")
     p.add_argument("--fashion-root", default="datasets/fashion_mnist")
     p.add_argument("--epochs", type=int, default=None)

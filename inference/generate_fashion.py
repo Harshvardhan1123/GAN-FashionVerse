@@ -12,6 +12,7 @@ from PIL import Image
 from torch import Tensor
 
 from models.dcgan_generator import DCGANGenerator
+from models.fashion_color_generator_v2 import FashionColorGeneratorV2
 from models.generator import BasicGenerator, sample_noise
 
 
@@ -29,15 +30,21 @@ def generate_fashion_images(
         raise ValueError("count must be greater than zero")
     if seed is not None and seed < 0:
         raise ValueError("seed cannot be negative")
-    if architecture not in {"basic", "dcgan"}:
-        raise ValueError("architecture must be 'basic' or 'dcgan'")
+    if architecture not in {"basic", "dcgan", "color_v2"}:
+        raise ValueError("architecture must be 'basic', 'dcgan', or 'color_v2'")
 
     checkpoint_file = Path(checkpoint_path)
     if not checkpoint_file.is_file():
         raise FileNotFoundError(f"Generator checkpoint does not exist: {checkpoint_file}")
 
     active_device = torch.device(device or ("cuda" if torch.cuda.is_available() else "cpu"))
-    generator = (DCGANGenerator(latent_dim) if architecture == "dcgan" else BasicGenerator(latent_dim)).to(active_device)
+    if architecture == "dcgan":
+        generator = DCGANGenerator(latent_dim)
+    elif architecture == "color_v2":
+        generator = FashionColorGeneratorV2(latent_dim)
+    else:
+        generator = BasicGenerator(latent_dim)
+    generator = generator.to(active_device)
     try:
         checkpoint: dict[str, Any] = torch.load(
             checkpoint_file,
@@ -72,8 +79,13 @@ def save_fashion_images(
     seed: int | None = None,
 ) -> list[Path]:
     """Save normalized generated images as individual PNG files."""
-    if images.ndim != 4 or images.shape[1:] != (1, 28, 28):
-        raise ValueError("images must have shape (batch, 1, 28, 28)")
+    if images.ndim != 4 or tuple(images.shape[1:]) not in {
+        (1, 28, 28),
+        (3, 64, 64),
+    }:
+        raise ValueError(
+            "images must have shape (batch, 1, 28, 28) or (batch, 3, 64, 64)"
+        )
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     timestamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
@@ -81,8 +93,12 @@ def save_fashion_images(
     paths: list[Path] = []
     for index, image in enumerate(display_images):
         path = output_path / f"{prefix}_{timestamp}_{index:03d}.png"
-        image_uint8 = (image.squeeze(0).mul(255).round()).to(torch.uint8).numpy()
-        Image.fromarray(image_uint8, mode="L").save(path, format="PNG")
+        if image.shape[0] == 1:
+            image_uint8 = (image.squeeze(0).mul(255).round()).to(torch.uint8).numpy()
+            Image.fromarray(image_uint8, mode="L").save(path, format="PNG")
+        else:
+            image_uint8 = image.permute(1, 2, 0).mul(255).round().to(torch.uint8).numpy()
+            Image.fromarray(image_uint8, mode="RGB").save(path, format="PNG")
         paths.append(path)
 
     _append_gallery_records(

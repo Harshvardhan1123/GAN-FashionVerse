@@ -10,11 +10,18 @@ from inference.generate_fashion import generate_fashion_images, save_fashion_ima
 
 def render() -> None:
     hero("Fashion Studio", "Turn a latent seed into a new fashion concept.", "Creative workspace")
-    st.caption("Output is 28×28 grayscale Fashion-MNIST imagery, not photorealistic full-body fashion.")
     left, right = st.columns([1, 1.6], gap="large")
     with left:
         st.markdown('<div class="studio-panel">', unsafe_allow_html=True)
-        architecture = st.selectbox("Architecture", ["basic", "dcgan"])
+        architecture = st.selectbox(
+            "Architecture",
+            ["color_v2", "dcgan", "basic"],
+            format_func={
+                "color_v2": "Fashion Color V2 (64x64 RGB)",
+                "dcgan": "DCGAN (28x28 grayscale)",
+                "basic": "Basic GAN (28x28 grayscale)",
+            }.get,
+        )
         count = st.slider("Design count", min_value=1, max_value=16, value=4)
         seed = st.number_input("Seed", min_value=0, value=42, help="Reuse a seed to reproduce the same latent vectors.")
         generate = st.button("Generate designs", type="primary", width="stretch")
@@ -22,9 +29,14 @@ def render() -> None:
         st.markdown("</div>", unsafe_allow_html=True)
     with right:
         section_heading("Latest collection", "Your generated designs appear here after a successful run.")
-    checkpoint = Path(f"checkpoints/{architecture}_gan_checkpoint.pth")
+    checkpoint_names = {
+        "color_v2": "checkpoints/fashion_color_generator_v2.pth",
+        "dcgan": "checkpoints/dcgan_gan_checkpoint.pth",
+        "basic": "checkpoints/basic_gan_checkpoint.pth",
+    }
+    checkpoint = Path(checkpoint_names[architecture])
     if not checkpoint.exists():
-        empty_state("Checkpoint required", f"Train the {architecture.upper()} model before generating designs.")
+        empty_state("Checkpoint required", f"Add or train the {architecture} checkpoint before generating designs.")
         return
 
     if generate:
