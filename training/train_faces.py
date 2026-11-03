@@ -10,9 +10,14 @@ from training.face_trainer import FaceGANTrainer
 
 
 def build_parser() -> argparse.ArgumentParser:
-    parser = argparse.ArgumentParser(description="Prepare a face dataset for future training.")
+    parser = argparse.ArgumentParser(description="Train the face generator.")
     parser.add_argument("--data-dir", type=Path, required=True)
-    parser.add_argument("--epochs", type=int, default=1)
+    parser.add_argument(
+        "--epochs",
+        type=int,
+        default=50,
+        help="number of training epochs (default: 50)",
+    )
     return parser
 
 

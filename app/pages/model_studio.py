@@ -10,12 +10,16 @@ from inference.generate_faces import FaceModelUnavailableError, generate_faces, 
 
 
 def render() -> None:
-    hero("AI Model Studio", "Generate synthetic portraits from the independently trained face GAN.", "Model laboratory")
-    checkpoint = "checkpoints/face_generator.pth"
+    hero(
+        "AI Model Studio",
+        "Generate photorealistic portraits with the pretrained FFHQ StyleGAN2 model.",
+        "Model laboratory",
+    )
+    checkpoint = "checkpoints/karras2019stylegan-ffhq-1024x1024.pkl"
     if not Path(checkpoint).exists():
         st.info(
-            "The face-generation GAN has not been trained. No generated faces are displayed. "
-            "Train it with the configured real-face dataset before generating."
+            "The pretrained FFHQ checkpoint is not available. Add "
+            f"`{checkpoint}` before generating faces."
         )
     count = st.slider("Number of faces", 1, 8, 2)
     seed = st.number_input("Seed", min_value=0, value=42)
@@ -27,7 +31,11 @@ def render() -> None:
                 ((face.detach().cpu() + 1.0) / 2.0).clamp(0.0, 1.0).permute(1, 2, 0).numpy()
                 for face in faces
             ]
-            st.image(display_faces, width=220)
+            st.image(
+                display_faces,
+                width="stretch",
+                caption=[f"Generated portrait {index + 1}" for index in range(len(faces))],
+            )
             st.session_state["face_paths"] = paths
         except FaceModelUnavailableError as error:
             st.info(str(error))

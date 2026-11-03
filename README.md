@@ -54,6 +54,7 @@ pillow>=10,<14
 matplotlib>=3.8,<4
 torch>=2.2,<3
 torchvision>=0.17,<1
+tensorflow-cpu>=2.15,<2.16
 streamlit>=1.35,<2
 plotly>=5.20,<7
 pytest>=8,<9
@@ -62,6 +63,12 @@ kagglehub>=0.3,<1
 
 CUDA is optional. The code automatically uses CUDA when
 `torch.cuda.is_available()` is true; otherwise it uses the CPU.
+
+The AI Model Studio can load the legacy TensorFlow StyleGAN FFHQ checkpoint
+`checkpoints/karras2019stylegan-ffhq-1024x1024.pkl`. TensorFlow 2.15 CPU
+compatibility support is included for this checkpoint format. Generated
+1024x1024 portraits are displayed in the app and saved under
+`outputs/faces/`.
 
 ## 1. Clone and create an environment
 
@@ -210,6 +217,22 @@ python -m training.train_improved fashion --epochs 100 --resume
 ```
 
 The `--epochs` value is the target ending epoch when resuming.
+
+### Standalone face training
+
+The standalone face trainer runs for 50 epochs by default. It accepts a
+folder containing `.jpg`, `.jpeg`, `.png`, or `.webp` images, including nested
+folders:
+
+```powershell
+python -m training.train_faces --data-dir "C:\path\to\face-images"
+```
+
+The epoch count can also be supplied explicitly:
+
+```powershell
+python -m training.train_faces --data-dir "C:\path\to\face-images" --epochs 50
+```
 
 ### Improved face training
 

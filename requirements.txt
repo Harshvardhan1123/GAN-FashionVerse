@@ -3,6 +3,7 @@ pillow>=10,<14
 matplotlib>=3.8,<4
 torch>=2.2,<3
 torchvision>=0.17,<1
+tensorflow-cpu>=2.15,<2.16
 streamlit>=1.35,<2
 plotly>=5.20,<7
 pytest>=8,<9
