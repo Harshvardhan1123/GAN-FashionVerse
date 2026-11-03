@@ -120,19 +120,19 @@ The dataset is stored under `datasets/fashion_mnist/`.
 ### Basic GAN
 
 ```powershell
-python -m training.train --architecture basic --epochs 10 --download
+python -m training.train --architecture basic --epochs 50 --download
 ```
 
 Optional batch-size override:
 
 ```powershell
-python -m training.train --architecture basic --epochs 10 --batch-size 128 --download
+python -m training.train --architecture basic --epochs 50 --batch-size 128 --download
 ```
 
 ### DCGAN
 
 ```powershell
-python -m training.train --architecture dcgan --epochs 10 --download
+python -m training.train --architecture dcgan --epochs 50 --download
 ```
 
 The original trainer uses:
